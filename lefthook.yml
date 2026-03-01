@@ -1,0 +1,18 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: prettier
+      glob: '*.{css,html,js,json,md,mjs,ts,yaml,yml}'
+      run: prettier --check --config=.prettierrc.js --ignore-path=.prettierignore --ignore-path=.gitignore {staged_files}
+
+    - name: mix format
+      glob: '*.{ex,exs}'
+      run: mix format --check-formatted
+
+    - name: typos
+      run: typos {staged_files}
+
+pre-push:
+  jobs:
+    - name: mix check
+      run: mix check

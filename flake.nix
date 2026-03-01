@@ -36,6 +36,7 @@
           beam28Packages.elixir
           beam28Packages.hex
           beam28Packages.expert
+          prettier
         ];
         shellHook = ''
           lefthook install
