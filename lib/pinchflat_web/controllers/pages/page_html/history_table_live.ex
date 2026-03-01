@@ -6,9 +6,7 @@ defmodule Pinchflat.Pages.HistoryTableLive do
   alias Pinchflat.Utils.NumberUtils
   alias PinchflatWeb.CustomComponents.TextComponents
 
-  @limit 5
-
-  def render(%{records: []} = assigns) do
+  @limit System.get_env("PAGINATION_HISTORY_LIMIT", System.get_env("PAGINATION_LIMIT", "10")) |> String.to_integer()  def render(%{records: []} = assigns) do
     ~H"""
     <div class="mb-4 flex items-center">
       <.icon_button icon_name="hero-arrow-path" class="h-10 w-10" phx-click="reload_page" />
