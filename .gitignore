@@ -45,3 +45,5 @@ scratchpad.md
 # Database files
 *.db
 *.db-*
+
+.direnv/
