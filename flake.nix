@@ -30,6 +30,7 @@
           docker-compose
           opencode
           typos
+          actionlint
           nodejs_22
           yarn
           erlang_28

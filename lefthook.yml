@@ -9,3 +9,6 @@ pre-commit:
       run: mix format --check-formatted
     - name: typos
       run: typos {staged_files}
+    - name: actionlint
+      glob: '.github/workflows/*.{yml,yaml}'
+      run: actionlint {staged_files}
