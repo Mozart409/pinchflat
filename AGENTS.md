@@ -1,218 +1,255 @@
 # Agent Guidelines for Pinchflat
 
-This document provides context and guidelines for AI agents working on this codebase.
+Guidelines for AI agents working on this Elixir/Phoenix codebase.
 
 ## Project Overview
 
-Pinchflat is an Elixir/Phoenix application for self-hosted media management. It uses:
+Pinchflat is a self-hosted media management app using:
 
 - **Backend**: Elixir 1.17+, Phoenix 1.7, Ecto with SQLite
 - **Frontend**: Phoenix LiveView, Tailwind CSS, esbuild
 - **Background Jobs**: Oban
-- **Containerization**: Docker with multi-arch support (amd64/arm64)
+- **Testing**: ExUnit with Mox for mocking
 
-## Development Environment
-
-This project uses Nix flakes for reproducible development environments.
+## Build/Lint/Test Commands
 
 ```bash
-# Enter dev shell
+# Enter Nix dev shell (required for tooling)
 nix develop
 
-# Or with specific shell
-nix develop . --command fish
+# Run all checks (compile, format, credo, tests, sobelow, prettier)
+mix check
+
+# Run tests only
+mix test
+
+# Run a single test file
+mix test test/pinchflat/media_test.exs
+
+# Run a specific test by line number
+mix test test/pinchflat/media_test.exs:42
+
+# Run tests matching a pattern
+mix test --only describe:"list_media_items"
+
+# Format Elixir code
+mix format
+
+# Run Credo linter
+mix credo
+
+# Security analysis
+mix sobelow --config
+
+# Format JS/CSS/YAML/JSON
+yarn run lint:fix
 ```
 
-### Available Tools (via flake.nix)
+## Code Style Guidelines
 
-- `lefthook` - Git hooks manager
-- `actionlint` - GitHub Actions linter
-- `typos` - Spell checker
-- `prettier` - Code formatter (JS/CSS/YAML/JSON)
-- `cocogitto` - Conventional commits
-- `just` - Command runner
-- Docker tooling (docker, docker-buildx, docker-compose)
+### Module Structure
 
-## Git Hooks (lefthook)
+Follow this order in modules:
 
-Pre-commit hooks are configured in `lefthook.yml`:
+1. `@moduledoc` - required for all public modules
+2. `use`/`import`/`alias`/`require` statements
+3. Module attributes (`@allowed_fields`, `@impl`, etc.)
+4. Public functions with `@doc`
+5. Private functions
 
-| Hook         | Files                                     | Purpose             |
-| ------------ | ----------------------------------------- | ------------------- |
-| `prettier`   | `*.{css,html,js,json,md,mjs,ts,yaml,yml}` | Format check        |
-| `mix format` | `*.{ex,exs}`                              | Elixir formatting   |
-| `typos`      | All staged files                          | Spell checking      |
-| `actionlint` | `.github/workflows/*.{yml,yaml}`          | Validate GH Actions |
+```elixir
+defmodule Pinchflat.Media do
+  @moduledoc """
+  The Media context.
+  """
 
-### Bypassing Hooks
+  import Ecto.Query, warn: false
+  use Pinchflat.Media.MediaQuery
 
-If hooks fail due to environment issues (e.g., permission errors):
+  alias Pinchflat.Repo
+  alias Pinchflat.Media.MediaItem
 
-```bash
-git commit --no-verify -m "message"
+  @doc """
+  Returns the list of media_items.
+  """
+  def list_media_items do
+    Repo.all(MediaItem)
+  end
+
+  defp some_private_function do
+    # ...
+  end
+end
 ```
 
-## GitHub Actions Workflows
+### Imports and Aliases
 
-### `lint_and_test.yml`
+- Use `alias` for frequently used modules
+- Prefer explicit imports: `import Ecto.Query, warn: false`
+- Group aliases alphabetically
+- Use `alias __MODULE__` for self-reference in schemas
 
-Runs on PRs and pushes to master. Uses Docker Compose for testing.
+### Naming Conventions
 
-Key features:
+- **Modules**: PascalCase matching file path (`Pinchflat.Media.MediaItem`)
+- **Functions**: snake*case with verb prefixes (`get*`, `list*`, `create*`, `update*`, `delete*`)
+- **Predicate functions**: end with `?` (`pending_download?/1`)
+- **Private functions**: prefix with `do_` for wrapper pattern (`do_delete_media_files`)
+- **Workers**: suffix with `Worker` (`MediaDownloadWorker`)
+- **Fixtures**: suffix with `_fixture` (`media_item_fixture`)
 
-- Concurrency control (cancels in-progress runs on same PR)
-- 30-minute timeout
-- Pinned action versions (SHA-based for security)
+### Formatting
 
-### `docker_release.yml`
+- Line length: 120 characters max
+- Use `mix format` - config in `.formatter.exs`
+- Prettier for JS/CSS/YAML/JSON
 
-Builds and pushes Docker images to GHCR.
+### Return Types
 
-**Architecture**:
+Document returns in `@doc`:
 
-```
-prepare job (determines platform matrix)
-    |
-    v
-build job (parallel)
-├── linux/amd64 on ubuntu-latest (native)
-└── linux/arm64 on ubuntu-24.04-arm (native, NOT QEMU)
-    |
-    v
-merge job (creates multi-arch manifest)
-```
+```elixir
+@doc """
+Creates a media_item.
 
-**Trigger behavior**:
-
-- Push to master: Builds amd64 only (fast dev iteration)
-- Release published: Builds both amd64 and arm64
-- workflow_dispatch: User chooses platforms
-
-**Important**: GHCR requires lowercase repository names. The workflow converts `$GITHUB_REPOSITORY` to lowercase using `${GITHUB_REPOSITORY,,}`.
-
-## Releasing a New Version
-
-1. Update version in `mix.exs`:
-
-   ```elixir
-   version: "YYYY.M.D",
-   ```
-
-2. Commit and tag:
-
-   ```bash
-   git add mix.exs
-   git commit -m "chore: bump version to vYYYY.M.D"
-   git tag vYYYY.M.D
-   ```
-
-3. Push to your fork:
-
-   ```bash
-   git push origin master && git push origin vYYYY.M.D
-   ```
-
-4. Create GitHub release:
-   ```bash
-   gh release create vYYYY.M.D --title "vYYYY.M.D" --generate-notes --repo <owner>/pinchflat
-   ```
-
-### Cleaning Up Tags
-
-If you need to delete and recreate tags:
-
-```bash
-# Delete locally
-git tag -d vX.Y.Z
-
-# Delete on remote
-git push origin --delete vX.Y.Z
-
-# Recreate on specific commit
-git tag vX.Y.Z <commit-sha>
-
-# Force push to overwrite remote
-git push origin vX.Y.Z --force
+Returns {:ok, %MediaItem{}} | {:error, %Ecto.Changeset{}}
+"""
+def create_media_item(attrs) do
+  # ...
+end
 ```
 
-## Validating GitHub Actions Locally
+### Error Handling
 
-Always validate workflow changes before pushing:
+- Use `{:ok, result}` / `{:error, reason}` tuples
+- Use `!` suffix for functions that raise (`get_media_item!/1`)
+- Pattern match on error tuples explicitly
+- Rescue specific exceptions when needed:
 
-```bash
-# Check all workflows
-actionlint
-
-# Check specific file
-actionlint .github/workflows/docker_release.yml
+```elixir
+def perform(%Oban.Job{args: %{"id" => id}}) do
+  # ...
+rescue
+  Ecto.NoResultsError -> Logger.info("Record not found")
+  Ecto.StaleEntryError -> Logger.info("Record stale")
+end
 ```
 
-### Common Issues actionlint Catches
+### Oban Workers
 
-- Invalid YAML syntax
-- Unknown/misspelled action inputs
-- Type errors in expressions (`${{ }}`)
-- Invalid `runs-on` values
-- Shell script issues (via shellcheck)
-- Deprecated features
+```elixir
+defmodule Pinchflat.Downloading.MediaDownloadWorker do
+  @moduledoc false
 
-### Shellcheck Directives
+  use Oban.Worker,
+    queue: :media_fetching,
+    priority: 5,
+    unique: [period: :infinity, states: [:available, :scheduled, :retryable, :executing]],
+    tags: ["media_item", "show_in_dashboard"]
 
-For intentional word splitting in workflows, add the directive inside the `run:` block:
-
-```yaml
-run: |
-  # shellcheck disable=SC2046
-  docker buildx imagetools create $(jq -cr '...' <<< "$JSON") \
-    $(printf 'image@sha256:%s ' *)
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: %{"id" => id} = args}) do
+    # Return :ok, {:ok, result}, {:error, reason}, or {:snooze, seconds}
+  end
+end
 ```
 
-## CI Best Practices
+### Testing Patterns
 
-1. **Pin action versions to SHAs** for security:
+Use `Pinchflat.DataCase` for database tests:
 
-   ```yaml
-   uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-   ```
+```elixir
+defmodule Pinchflat.MediaTest do
+  use Pinchflat.DataCase
 
-2. **Quote shell variables** to satisfy shellcheck:
+  import Pinchflat.MediaFixtures
+  import Pinchflat.SourcesFixtures
 
-   ```yaml
-   run: echo "value" >> "$GITHUB_OUTPUT"
-   ```
+  alias Pinchflat.Media
 
-3. **Use native ARM runners** instead of QEMU for faster builds:
-
-   ```yaml
-   runs-on: ubuntu-24.04-arm # Native ARM64
-   ```
-
-4. **Scope caches by platform** to avoid conflicts:
-
-   ```yaml
-   cache-from: type=gha,scope=build-linux-amd64
-   ```
-
-5. **Add concurrency controls** to save CI minutes:
-   ```yaml
-   concurrency:
-     group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
-     cancel-in-progress: true
-   ```
-
-## Running Tests
-
-```bash
-# Via Docker Compose (as CI does)
-docker compose -f docker-compose.ci.yml up -d
-docker compose exec phx mix deps.get
-docker compose exec phx mix ecto.create
-docker compose exec phx mix ecto.migrate
-docker compose exec phx mix check --no-fix --no-retry
+  describe "list_media_items/0" do
+    test "returns all media_items" do
+      media_item = media_item_fixture()
+      assert Media.list_media_items() == [media_item]
+    end
+  end
+end
 ```
 
-## Code Style
+### Mocking with Mox
 
-- Elixir: Follow `mix format` (configured in `.formatter.exs`)
-- JavaScript/CSS: Follow Prettier (configured in `.prettierrc.js`)
-- Commits: Conventional commits recommended (cocogitto installed)
+Mocks are defined in `test/test_helper.exs`:
+
+- `YtDlpRunnerMock` - yt-dlp commands
+- `HTTPClientMock` - HTTP requests
+- `UserScriptRunnerMock` - user scripts
+- `AppriseRunnerMock` - notifications
+
+```elixir
+test "calls user script" do
+  expect(UserScriptRunnerMock, :run, fn :media_deleted, data ->
+    assert data.id == media_item.id
+    {:ok, "", 0}
+  end)
+
+  Media.delete_media_item(media_item, delete_files: true)
+end
+```
+
+### Test Fixtures
+
+Create fixtures in `test/support/fixtures/`:
+
+```elixir
+def media_item_fixture(attrs \\ %{}) do
+  {:ok, media_item} =
+    attrs
+    |> Enum.into(%{
+      media_id: Faker.String.base64(12),
+      title: Faker.Commerce.product_name(),
+      source_id: source_fixture().id
+    })
+    |> Pinchflat.Media.create_media_item()
+
+  media_item
+end
+```
+
+### Test Helpers
+
+From `Pinchflat.TestingHelperMethods`:
+
+- `now/0` - current UTC datetime
+- `now_minus/2` - datetime in past (`now_minus(5, :days)`)
+- `now_plus/2` - datetime in future
+- `assert_changed/2` - verify state change
+
+## Project Structure
+
+```
+lib/
+  pinchflat/           # Business logic contexts
+    media/             # Media context (MediaItem, queries)
+    sources/           # Source context
+    downloading/       # Download workers and helpers
+    yt_dlp/            # yt-dlp integration
+  pinchflat_web/       # Phoenix web layer
+test/
+  pinchflat/           # Context tests
+  pinchflat_web/       # Controller/LiveView tests
+  support/
+    fixtures/          # Test data factories
+    data_case.ex       # Database test setup
+    conn_case.ex       # HTTP test setup
+```
+
+## Pre-commit Hooks
+
+Lefthook runs on commit:
+
+- `prettier` - JS/CSS/YAML/JSON formatting
+- `mix format` - Elixir formatting
+- `typos` - spell checking
+- `actionlint` - GitHub Actions validation
+
+Bypass if needed: `git commit --no-verify -m "message"`
