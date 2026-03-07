@@ -8,6 +8,7 @@ pre-commit:
       glob: '*.{ex,exs}'
       run: mix format --check-formatted
     - name: typos
+      glob: '*.{md,txt}'
       run: typos {staged_files}
     - name: actionlint
       glob: '.github/workflows/*.{yml,yaml}'
