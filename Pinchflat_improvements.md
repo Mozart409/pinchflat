@@ -38,16 +38,16 @@ Issues discovered while debugging Jellyfin artwork problems.
 2. Ensure source image download happens before/independently of media downloads
 3. Add error logging if source image download fails
 
-## Issue 3: No way to re-trigger source image download
+## Issue 3: No way to re-trigger source image download [COMPLETED]
 
 **Problem:** There's no UI option or API endpoint to re-download source images for an existing source. Users must delete and re-add the source.
 
-**Suggested fix:** Add a "Refresh source metadata" button in the source settings that:
+**Resolution:** This feature already exists! Go to the source page, click "Actions" dropdown, then "Refresh Metadata". This will:
 
-1. Re-fetches channel metadata from YouTube
-2. Downloads/updates poster, fanart, and banner images
-3. Updates the `source_metadata` and `sources` tables
-4. Copies images to the show folder
+1. Re-fetch channel metadata from YouTube
+2. Download/update poster, fanart, and banner images
+3. Update the `source_metadata` and `sources` tables
+4. Copy images to the show folder (if `download_source_images` is enabled on the media profile)
 
 ## Database schema reference
 
