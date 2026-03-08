@@ -4,11 +4,69 @@ defmodule PinchflatWeb.Api.MediaController do
   import Ecto.Query, warn: false
 
   alias Pinchflat.Repo
+  alias Pinchflat.Media
   alias Pinchflat.Media.MediaItem
+  alias Pinchflat.Downloading.MediaDownloadWorker
 
   @default_limit 50
   @min_limit 1
   @max_limit 500
+
+  def index(conn, params) do
+    limit =
+      params
+      |> Map.get("limit", "#{@default_limit}")
+      |> parse_int(@default_limit)
+      |> clamp(@min_limit, @max_limit)
+
+    query = from(mi in MediaItem, order_by: [desc: mi.inserted_at], limit: ^limit)
+
+    query =
+      if source_id = params["source_id"] do
+        from(mi in query, where: mi.source_id == ^source_id)
+      else
+        query
+      end
+
+    media_items = Repo.all(query)
+
+    conn
+    |> put_status(:ok)
+    |> json(%{data: media_items})
+  end
+
+  def show(conn, %{"id" => id}) do
+    media_item = Media.get_media_item!(id) |> Repo.preload(:source)
+
+    conn
+    |> put_status(:ok)
+    |> json(media_item)
+  end
+
+  def delete(conn, %{"id" => id} = params) do
+    media_item = Media.get_media_item!(id)
+    prevent_download = params["prevent_download"] == "true" || params["prevent_download"] == true
+
+    {:ok, _} = Media.delete_media_files(media_item, %{prevent_download: prevent_download})
+
+    conn
+    |> put_status(:ok)
+    |> json(%{message: "Media files deleted successfully"})
+  end
+
+  def download(conn, %{"id" => id}) do
+    media_item = Media.get_media_item!(id) |> Repo.preload(:source)
+
+    case MediaDownloadWorker.kickoff_with_task(media_item, %{force: true}) do
+      {:ok, _} -> :ok
+      {:error, :duplicate_job} -> :ok
+      err -> err
+    end
+
+    conn
+    |> put_status(:ok)
+    |> json(%{message: "Download job created"})
+  end
 
   def recent_downloads(conn, params) do
     limit =

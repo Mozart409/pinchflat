@@ -75,7 +75,39 @@ defmodule PinchflatWeb.Router do
   scope "/api", PinchflatWeb do
     pipe_through :api
 
+    # Media endpoints
     get "/media/recent_downloads", Api.MediaController, :recent_downloads
+    get "/media", Api.MediaController, :index
+    get "/media/:id", Api.MediaController, :show
+    delete "/media/:id", Api.MediaController, :delete
+    post "/media/:id/actions/download", Api.MediaController, :download
+
+    # Media profile endpoints
+    get "/media_profiles", Api.MediaProfileController, :index
+    post "/media_profiles", Api.MediaProfileController, :create
+    get "/media_profiles/:id", Api.MediaProfileController, :show
+    put "/media_profiles/:id", Api.MediaProfileController, :update
+    delete "/media_profiles/:id", Api.MediaProfileController, :delete
+
+    # Search endpoint
+    get "/search", Api.SearchController, :search
+
+    # Source action endpoints
+    post "/sources/:id/actions/download_pending", Api.SourceActionsController, :download_pending
+    post "/sources/:id/actions/redownload", Api.SourceActionsController, :redownload
+    post "/sources/:id/actions/index", Api.SourceActionsController, :index
+    post "/sources/:id/actions/refresh_metadata", Api.SourceActionsController, :refresh_metadata
+    post "/sources/:id/actions/sync_files", Api.SourceActionsController, :sync_files
+
+    # Task endpoints
+    get "/tasks", Api.TaskController, :index
+    get "/tasks/:id", Api.TaskController, :show
+    delete "/tasks/:id", Api.TaskController, :delete
+
+    # Statistics endpoint
+    get "/stats", Api.StatsController, :index
+
+    # OpenAPI spec
     get "/spec", ApiSpecController, :spec
   end
 

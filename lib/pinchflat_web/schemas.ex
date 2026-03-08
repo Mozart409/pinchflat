@@ -375,4 +375,320 @@ defmodule PinchflatWeb.Schemas do
       required: [:source]
     })
   end
+
+  defmodule MediaProfilesListResponse do
+    @moduledoc """
+    Schema for listing media profiles response.
+    """
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "MediaProfilesListResponse",
+      description: "Response containing a list of media profiles",
+      type: :object,
+      properties: %{
+        data: %Schema{
+          type: :array,
+          items: MediaProfile,
+          description: "List of media profiles"
+        }
+      },
+      required: [:data]
+    })
+  end
+
+  defmodule CreateMediaProfileRequest do
+    @moduledoc """
+    Schema for creating a new media profile.
+    """
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "CreateMediaProfileRequest",
+      description: "Request body for creating a new media profile",
+      type: :object,
+      properties: %{
+        media_profile: %Schema{
+          type: :object,
+          properties: %{
+            name: %Schema{type: :string, description: "Profile name (required)", example: "HD Videos"},
+            output_path_template: %Schema{
+              type: :string,
+              description: "Template for output file paths (required)",
+              example: "/{{ source_custom_name }}/{{ title }} [{{ id }}].{{ ext }}"
+            },
+            download_subs: %Schema{type: :boolean, description: "Download subtitles", default: false},
+            download_auto_subs: %Schema{
+              type: :boolean,
+              description: "Download auto-generated subtitles",
+              default: false
+            },
+            embed_subs: %Schema{type: :boolean, description: "Embed subtitles into media file", default: false},
+            sub_langs: %Schema{type: :string, description: "Subtitle languages", default: "en"},
+            download_thumbnail: %Schema{type: :boolean, description: "Download thumbnail", default: true},
+            embed_thumbnail: %Schema{type: :boolean, description: "Embed thumbnail into media file", default: true},
+            download_source_images: %Schema{type: :boolean, description: "Download source images", default: false},
+            download_metadata: %Schema{type: :boolean, description: "Download metadata", default: true},
+            embed_metadata: %Schema{type: :boolean, description: "Embed metadata into media file", default: true},
+            download_nfo: %Schema{type: :boolean, description: "Download NFO file", default: false},
+            sponsorblock_behaviour: %Schema{
+              type: :string,
+              enum: [:disabled, :mark, :remove],
+              description: "SponsorBlock behavior",
+              default: :disabled
+            },
+            sponsorblock_categories: %Schema{
+              type: :array,
+              items: %Schema{type: :string},
+              description: "SponsorBlock categories",
+              default: []
+            },
+            shorts_behaviour: %Schema{
+              type: :string,
+              enum: [:include, :exclude, :only],
+              description: "Shorts handling behavior",
+              default: :include
+            },
+            livestream_behaviour: %Schema{
+              type: :string,
+              enum: [:include, :exclude, :only],
+              description: "Livestream handling behavior",
+              default: :include
+            },
+            audio_track: %Schema{type: :string, description: "Preferred audio track"},
+            preferred_resolution: %Schema{
+              type: :string,
+              enum: [:"4320p", :"2160p", :"1440p", :"1080p", :"720p", :"480p", :"360p", :audio],
+              description: "Preferred video resolution",
+              default: :"1080p"
+            },
+            media_container: %Schema{type: :string, description: "Media container format", default: "mp4"},
+            redownload_delay_days: %Schema{type: :integer, description: "Delay before redownloading"}
+          },
+          required: [:name, :output_path_template]
+        }
+      },
+      required: [:media_profile]
+    })
+  end
+
+  defmodule UpdateMediaProfileRequest do
+    @moduledoc """
+    Schema for updating an existing media profile.
+    """
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "UpdateMediaProfileRequest",
+      description: "Request body for updating a media profile",
+      type: :object,
+      properties: %{
+        media_profile: %Schema{
+          type: :object,
+          properties: %{
+            name: %Schema{type: :string, description: "Profile name"},
+            output_path_template: %Schema{type: :string, description: "Template for output file paths"},
+            download_subs: %Schema{type: :boolean, description: "Download subtitles"},
+            download_auto_subs: %Schema{type: :boolean, description: "Download auto-generated subtitles"},
+            embed_subs: %Schema{type: :boolean, description: "Embed subtitles into media file"},
+            sub_langs: %Schema{type: :string, description: "Subtitle languages"},
+            download_thumbnail: %Schema{type: :boolean, description: "Download thumbnail"},
+            embed_thumbnail: %Schema{type: :boolean, description: "Embed thumbnail into media file"},
+            download_source_images: %Schema{type: :boolean, description: "Download source images"},
+            download_metadata: %Schema{type: :boolean, description: "Download metadata"},
+            embed_metadata: %Schema{type: :boolean, description: "Embed metadata into media file"},
+            download_nfo: %Schema{type: :boolean, description: "Download NFO file"},
+            sponsorblock_behaviour: %Schema{
+              type: :string,
+              enum: [:disabled, :mark, :remove],
+              description: "SponsorBlock behavior"
+            },
+            sponsorblock_categories: %Schema{
+              type: :array,
+              items: %Schema{type: :string},
+              description: "SponsorBlock categories"
+            },
+            shorts_behaviour: %Schema{
+              type: :string,
+              enum: [:include, :exclude, :only],
+              description: "Shorts handling behavior"
+            },
+            livestream_behaviour: %Schema{
+              type: :string,
+              enum: [:include, :exclude, :only],
+              description: "Livestream handling behavior"
+            },
+            audio_track: %Schema{type: :string, description: "Preferred audio track"},
+            preferred_resolution: %Schema{
+              type: :string,
+              enum: [:"4320p", :"2160p", :"1440p", :"1080p", :"720p", :"480p", :"360p", :audio],
+              description: "Preferred video resolution"
+            },
+            media_container: %Schema{type: :string, description: "Media container format"},
+            redownload_delay_days: %Schema{type: :integer, description: "Delay before redownloading"}
+          }
+        }
+      },
+      required: [:media_profile]
+    })
+  end
+
+  defmodule MediaItemsListResponse do
+    @moduledoc """
+    Schema for listing media items response.
+    """
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "MediaItemsListResponse",
+      description: "Response containing a list of media items",
+      type: :object,
+      properties: %{
+        data: %Schema{
+          type: :array,
+          items: MediaItem,
+          description: "List of media items"
+        }
+      },
+      required: [:data]
+    })
+  end
+
+  defmodule SearchResponse do
+    @moduledoc """
+    Schema for search response.
+    """
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "SearchResponse",
+      description: "Response containing search results",
+      type: :object,
+      properties: %{
+        data: %Schema{
+          type: :array,
+          items: MediaItem,
+          description: "List of media items matching the search"
+        },
+        query: %Schema{
+          type: :string,
+          description: "The search query that was executed"
+        }
+      },
+      required: [:data, :query]
+    })
+  end
+
+  defmodule Task do
+    @moduledoc """
+    Schema for a task (Oban job).
+    """
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "Task",
+      description: "A background task/job",
+      type: :object,
+      properties: %{
+        id: %Schema{type: :integer, description: "Task ID", example: 1},
+        job_id: %Schema{type: :integer, description: "Oban job ID", example: 123},
+        source_id: %Schema{type: :integer, description: "Associated source ID"},
+        media_item_id: %Schema{type: :integer, description: "Associated media item ID"},
+        worker: %Schema{
+          type: :string,
+          description: "Worker module name",
+          example: "Pinchflat.Downloading.MediaDownloadWorker"
+        },
+        state: %Schema{
+          type: :string,
+          enum: [:available, :scheduled, :executing, :retryable, :completed, :discarded, :cancelled],
+          description: "Job state"
+        },
+        args: %Schema{type: :object, description: "Job arguments"},
+        errors: %Schema{
+          type: :array,
+          items: %Schema{type: :object},
+          description: "Job errors"
+        },
+        attempt: %Schema{type: :integer, description: "Current attempt number"},
+        max_attempts: %Schema{type: :integer, description: "Maximum attempts"},
+        inserted_at: %Schema{type: :string, format: :date_time, description: "Creation timestamp"},
+        scheduled_at: %Schema{type: :string, format: :date_time, description: "Scheduled execution time"},
+        attempted_at: %Schema{type: :string, format: :date_time, description: "Last attempt time"},
+        completed_at: %Schema{type: :string, format: :date_time, description: "Completion time"}
+      },
+      required: [:id, :job_id, :worker, :state]
+    })
+  end
+
+  defmodule TasksListResponse do
+    @moduledoc """
+    Schema for listing tasks response.
+    """
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "TasksListResponse",
+      description: "Response containing a list of tasks",
+      type: :object,
+      properties: %{
+        data: %Schema{
+          type: :array,
+          items: Task,
+          description: "List of tasks"
+        }
+      },
+      required: [:data]
+    })
+  end
+
+  defmodule StatsResponse do
+    @moduledoc """
+    Schema for statistics response.
+    """
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "StatsResponse",
+      description: "Response containing application statistics",
+      type: :object,
+      properties: %{
+        media_profile_count: %Schema{type: :integer, description: "Number of media profiles", example: 5},
+        source_count: %Schema{type: :integer, description: "Number of sources", example: 12},
+        media_item_count: %Schema{type: :integer, description: "Number of downloaded media items", example: 1234},
+        total_download_size_bytes: %Schema{
+          type: :integer,
+          description: "Total size of downloaded media in bytes",
+          example: 104_857_600
+        }
+      },
+      required: [:media_profile_count, :source_count, :media_item_count, :total_download_size_bytes]
+    })
+  end
+
+  defmodule ActionResponse do
+    @moduledoc """
+    Schema for action response (e.g., triggering downloads).
+    """
+
+    require OpenApiSpex
+
+    OpenApiSpex.schema(%{
+      title: "ActionResponse",
+      description: "Response from triggering an action",
+      type: :object,
+      properties: %{
+        message: %Schema{type: :string, description: "Success message", example: "Action completed successfully"}
+      },
+      required: [:message]
+    })
+  end
 end

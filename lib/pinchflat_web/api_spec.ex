@@ -360,7 +360,7 @@ defmodule PinchflatWeb.ApiSpec do
             Streams a media file with HTTP Range request support for seeking.
             Supports partial content delivery (206) for efficient streaming.
             """,
-            tags: ["Media"],
+            tags: ["Podcasts"],
             parameters: [
               %Parameter{
                 name: :uuid,
@@ -401,6 +401,588 @@ defmodule PinchflatWeb.ApiSpec do
               },
               "404" => %Response{
                 description: "Media file not found"
+              }
+            }
+          }
+        },
+        "/api/media_profiles" => %PathItem{
+          get: %OpenApiSpex.Operation{
+            operationId: "Api.MediaProfileController.index",
+            summary: "List media profiles",
+            description: "Returns a list of all media profiles",
+            tags: ["MediaProfiles"],
+            responses: %{
+              "200" => %Response{
+                description: "List of media profiles",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.MediaProfilesListResponse
+                  }
+                }
+              }
+            }
+          },
+          post: %OpenApiSpex.Operation{
+            operationId: "Api.MediaProfileController.create",
+            summary: "Create media profile",
+            description: "Creates a new media profile",
+            tags: ["MediaProfiles"],
+            requestBody: %OpenApiSpex.RequestBody{
+              description: "Media profile creation parameters",
+              required: true,
+              content: %{
+                "application/json" => %MediaType{
+                  schema: PinchflatWeb.Schemas.CreateMediaProfileRequest
+                }
+              }
+            },
+            responses: %{
+              "201" => %Response{
+                description: "Media profile created successfully",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.MediaProfile
+                  }
+                }
+              },
+              "422" => %Response{
+                description: "Validation error"
+              }
+            }
+          }
+        },
+        "/api/media_profiles/{id}" => %PathItem{
+          get: %OpenApiSpex.Operation{
+            operationId: "Api.MediaProfileController.show",
+            summary: "Get media profile",
+            description: "Returns details for a specific media profile",
+            tags: ["MediaProfiles"],
+            parameters: [
+              %Parameter{
+                name: :id,
+                in: :path,
+                required: true,
+                description: "Media profile ID",
+                schema: %OpenApiSpex.Schema{type: :integer}
+              }
+            ],
+            responses: %{
+              "200" => %Response{
+                description: "Media profile details",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.MediaProfile
+                  }
+                }
+              },
+              "404" => %Response{
+                description: "Media profile not found"
+              }
+            }
+          },
+          put: %OpenApiSpex.Operation{
+            operationId: "Api.MediaProfileController.update",
+            summary: "Update media profile",
+            description: "Updates an existing media profile",
+            tags: ["MediaProfiles"],
+            parameters: [
+              %Parameter{
+                name: :id,
+                in: :path,
+                required: true,
+                description: "Media profile ID",
+                schema: %OpenApiSpex.Schema{type: :integer}
+              }
+            ],
+            requestBody: %OpenApiSpex.RequestBody{
+              description: "Media profile update parameters",
+              required: true,
+              content: %{
+                "application/json" => %MediaType{
+                  schema: PinchflatWeb.Schemas.UpdateMediaProfileRequest
+                }
+              }
+            },
+            responses: %{
+              "200" => %Response{
+                description: "Media profile updated successfully",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.MediaProfile
+                  }
+                }
+              },
+              "404" => %Response{
+                description: "Media profile not found"
+              },
+              "422" => %Response{
+                description: "Validation error"
+              }
+            }
+          },
+          delete: %OpenApiSpex.Operation{
+            operationId: "Api.MediaProfileController.delete",
+            summary: "Delete media profile",
+            description: "Deletes a media profile and optionally its associated sources and media files",
+            tags: ["MediaProfiles"],
+            parameters: [
+              %Parameter{
+                name: :id,
+                in: :path,
+                required: true,
+                description: "Media profile ID",
+                schema: %OpenApiSpex.Schema{type: :integer}
+              },
+              %Parameter{
+                name: :delete_files,
+                in: :query,
+                description: "Also delete associated media files from disk",
+                schema: %OpenApiSpex.Schema{type: :boolean, default: false}
+              }
+            ],
+            responses: %{
+              "200" => %Response{
+                description: "Media profile deletion started",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.ActionResponse
+                  }
+                }
+              },
+              "404" => %Response{
+                description: "Media profile not found"
+              }
+            }
+          }
+        },
+        "/api/media" => %PathItem{
+          get: %OpenApiSpex.Operation{
+            operationId: "Api.MediaController.index",
+            summary: "List media items",
+            description: "Returns a list of media items with optional filtering",
+            tags: ["Media"],
+            parameters: [
+              %Parameter{
+                name: :source_id,
+                in: :query,
+                description: "Filter by source ID",
+                schema: %OpenApiSpex.Schema{type: :integer}
+              },
+              %Parameter{
+                name: :limit,
+                in: :query,
+                description: "Maximum number of results to return (1-500)",
+                schema: %OpenApiSpex.Schema{type: :integer, minimum: 1, maximum: 500, default: 50}
+              }
+            ],
+            responses: %{
+              "200" => %Response{
+                description: "List of media items",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.MediaItemsListResponse
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/api/media/{id}" => %PathItem{
+          get: %OpenApiSpex.Operation{
+            operationId: "Api.MediaController.show",
+            summary: "Get media item",
+            description: "Returns details for a specific media item",
+            tags: ["Media"],
+            parameters: [
+              %Parameter{
+                name: :id,
+                in: :path,
+                required: true,
+                description: "Media item ID",
+                schema: %OpenApiSpex.Schema{type: :integer}
+              }
+            ],
+            responses: %{
+              "200" => %Response{
+                description: "Media item details",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.MediaItem
+                  }
+                }
+              },
+              "404" => %Response{
+                description: "Media item not found"
+              }
+            }
+          },
+          delete: %OpenApiSpex.Operation{
+            operationId: "Api.MediaController.delete",
+            summary: "Delete media item files",
+            description: "Deletes the media files associated with a media item",
+            tags: ["Media"],
+            parameters: [
+              %Parameter{
+                name: :id,
+                in: :path,
+                required: true,
+                description: "Media item ID",
+                schema: %OpenApiSpex.Schema{type: :integer}
+              },
+              %Parameter{
+                name: :prevent_download,
+                in: :query,
+                description: "Prevent future re-download of this media item",
+                schema: %OpenApiSpex.Schema{type: :boolean, default: false}
+              }
+            ],
+            responses: %{
+              "200" => %Response{
+                description: "Media files deleted successfully",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.ActionResponse
+                  }
+                }
+              },
+              "404" => %Response{
+                description: "Media item not found"
+              }
+            }
+          }
+        },
+        "/api/media/{id}/actions/download" => %PathItem{
+          post: %OpenApiSpex.Operation{
+            operationId: "Api.MediaController.download",
+            summary: "Force download media item",
+            description: "Triggers a download job for the specified media item",
+            tags: ["Media"],
+            parameters: [
+              %Parameter{
+                name: :id,
+                in: :path,
+                required: true,
+                description: "Media item ID",
+                schema: %OpenApiSpex.Schema{type: :integer}
+              }
+            ],
+            responses: %{
+              "200" => %Response{
+                description: "Download job created",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.ActionResponse
+                  }
+                }
+              },
+              "404" => %Response{
+                description: "Media item not found"
+              }
+            }
+          }
+        },
+        "/api/search" => %PathItem{
+          get: %OpenApiSpex.Operation{
+            operationId: "Api.SearchController.search",
+            summary: "Search media items",
+            description: "Search for media items by title",
+            tags: ["Search"],
+            parameters: [
+              %Parameter{
+                name: :q,
+                in: :query,
+                required: true,
+                description: "Search query",
+                schema: %OpenApiSpex.Schema{type: :string, example: "my video"}
+              },
+              %Parameter{
+                name: :limit,
+                in: :query,
+                description: "Maximum number of results",
+                schema: %OpenApiSpex.Schema{type: :integer, minimum: 1, maximum: 500, default: 50}
+              }
+            ],
+            responses: %{
+              "200" => %Response{
+                description: "Search results",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.SearchResponse
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/api/sources/{id}/actions/download_pending" => %PathItem{
+          post: %OpenApiSpex.Operation{
+            operationId: "Api.SourceActionsController.download_pending",
+            summary: "Download pending media",
+            description: "Triggers download jobs for all pending media items in this source",
+            tags: ["Sources"],
+            parameters: [
+              %Parameter{
+                name: :id,
+                in: :path,
+                required: true,
+                description: "Source ID",
+                schema: %OpenApiSpex.Schema{type: :integer}
+              }
+            ],
+            responses: %{
+              "200" => %Response{
+                description: "Download jobs created",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.ActionResponse
+                  }
+                }
+              },
+              "404" => %Response{
+                description: "Source not found"
+              }
+            }
+          }
+        },
+        "/api/sources/{id}/actions/redownload" => %PathItem{
+          post: %OpenApiSpex.Operation{
+            operationId: "Api.SourceActionsController.redownload",
+            summary: "Re-download all media",
+            description: "Triggers re-download jobs for all existing media items in this source",
+            tags: ["Sources"],
+            parameters: [
+              %Parameter{
+                name: :id,
+                in: :path,
+                required: true,
+                description: "Source ID",
+                schema: %OpenApiSpex.Schema{type: :integer}
+              }
+            ],
+            responses: %{
+              "200" => %Response{
+                description: "Re-download jobs created",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.ActionResponse
+                  }
+                }
+              },
+              "404" => %Response{
+                description: "Source not found"
+              }
+            }
+          }
+        },
+        "/api/sources/{id}/actions/index" => %PathItem{
+          post: %OpenApiSpex.Operation{
+            operationId: "Api.SourceActionsController.index",
+            summary: "Force index source",
+            description: "Triggers an indexing job to fetch the latest media from this source",
+            tags: ["Sources"],
+            parameters: [
+              %Parameter{
+                name: :id,
+                in: :path,
+                required: true,
+                description: "Source ID",
+                schema: %OpenApiSpex.Schema{type: :integer}
+              }
+            ],
+            responses: %{
+              "200" => %Response{
+                description: "Index job created",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.ActionResponse
+                  }
+                }
+              },
+              "404" => %Response{
+                description: "Source not found"
+              }
+            }
+          }
+        },
+        "/api/sources/{id}/actions/refresh_metadata" => %PathItem{
+          post: %OpenApiSpex.Operation{
+            operationId: "Api.SourceActionsController.refresh_metadata",
+            summary: "Refresh source metadata",
+            description: "Triggers a job to refresh metadata for this source",
+            tags: ["Sources"],
+            parameters: [
+              %Parameter{
+                name: :id,
+                in: :path,
+                required: true,
+                description: "Source ID",
+                schema: %OpenApiSpex.Schema{type: :integer}
+              }
+            ],
+            responses: %{
+              "200" => %Response{
+                description: "Metadata refresh job created",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.ActionResponse
+                  }
+                }
+              },
+              "404" => %Response{
+                description: "Source not found"
+              }
+            }
+          }
+        },
+        "/api/sources/{id}/actions/sync_files" => %PathItem{
+          post: %OpenApiSpex.Operation{
+            operationId: "Api.SourceActionsController.sync_files",
+            summary: "Sync files to disk",
+            description: "Triggers a job to sync database records with actual files on disk",
+            tags: ["Sources"],
+            parameters: [
+              %Parameter{
+                name: :id,
+                in: :path,
+                required: true,
+                description: "Source ID",
+                schema: %OpenApiSpex.Schema{type: :integer}
+              }
+            ],
+            responses: %{
+              "200" => %Response{
+                description: "File sync job created",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.ActionResponse
+                  }
+                }
+              },
+              "404" => %Response{
+                description: "Source not found"
+              }
+            }
+          }
+        },
+        "/api/tasks" => %PathItem{
+          get: %OpenApiSpex.Operation{
+            operationId: "Api.TaskController.index",
+            summary: "List tasks",
+            description: "Returns a list of background tasks with optional filtering",
+            tags: ["Tasks"],
+            parameters: [
+              %Parameter{
+                name: :source_id,
+                in: :query,
+                description: "Filter by source ID",
+                schema: %OpenApiSpex.Schema{type: :integer}
+              },
+              %Parameter{
+                name: :media_item_id,
+                in: :query,
+                description: "Filter by media item ID",
+                schema: %OpenApiSpex.Schema{type: :integer}
+              },
+              %Parameter{
+                name: :worker,
+                in: :query,
+                description: "Filter by worker name (e.g., 'MediaDownloadWorker')",
+                schema: %OpenApiSpex.Schema{type: :string}
+              },
+              %Parameter{
+                name: :state,
+                in: :query,
+                description: "Filter by job state",
+                schema: %OpenApiSpex.Schema{
+                  type: :string,
+                  enum: [:available, :scheduled, :executing, :retryable, :completed, :discarded, :cancelled]
+                }
+              }
+            ],
+            responses: %{
+              "200" => %Response{
+                description: "List of tasks",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.TasksListResponse
+                  }
+                }
+              }
+            }
+          }
+        },
+        "/api/tasks/{id}" => %PathItem{
+          get: %OpenApiSpex.Operation{
+            operationId: "Api.TaskController.show",
+            summary: "Get task",
+            description: "Returns details for a specific task",
+            tags: ["Tasks"],
+            parameters: [
+              %Parameter{
+                name: :id,
+                in: :path,
+                required: true,
+                description: "Task ID",
+                schema: %OpenApiSpex.Schema{type: :integer}
+              }
+            ],
+            responses: %{
+              "200" => %Response{
+                description: "Task details",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.Task
+                  }
+                }
+              },
+              "404" => %Response{
+                description: "Task not found"
+              }
+            }
+          },
+          delete: %OpenApiSpex.Operation{
+            operationId: "Api.TaskController.delete",
+            summary: "Cancel task",
+            description: "Cancels and deletes a task",
+            tags: ["Tasks"],
+            parameters: [
+              %Parameter{
+                name: :id,
+                in: :path,
+                required: true,
+                description: "Task ID",
+                schema: %OpenApiSpex.Schema{type: :integer}
+              }
+            ],
+            responses: %{
+              "200" => %Response{
+                description: "Task cancelled successfully",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.ActionResponse
+                  }
+                }
+              },
+              "404" => %Response{
+                description: "Task not found"
+              }
+            }
+          }
+        },
+        "/api/stats" => %PathItem{
+          get: %OpenApiSpex.Operation{
+            operationId: "Api.StatsController.index",
+            summary: "Get statistics",
+            description: "Returns application statistics",
+            tags: ["Statistics"],
+            responses: %{
+              "200" => %Response{
+                description: "Application statistics",
+                content: %{
+                  "application/json" => %MediaType{
+                    schema: PinchflatWeb.Schemas.StatsResponse
+                  }
+                }
               }
             }
           }

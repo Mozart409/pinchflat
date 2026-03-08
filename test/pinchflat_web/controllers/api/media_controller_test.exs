@@ -1,7 +1,112 @@
 defmodule PinchflatWeb.Api.MediaControllerTest do
   use PinchflatWeb.ConnCase
 
+  import Mox
   import Pinchflat.MediaFixtures
+  import Pinchflat.SourcesFixtures
+
+  describe "GET /api/media" do
+    test "returns list of media items", %{conn: conn} do
+      item1 = media_item_fixture()
+      item2 = media_item_fixture()
+
+      conn = get(conn, "/api/media")
+      response = json_response(conn, 200)
+
+      ids = Enum.map(response["data"], & &1["id"])
+      assert item1.id in ids
+      assert item2.id in ids
+    end
+
+    test "filters by source_id", %{conn: conn} do
+      source1 = source_fixture()
+      source2 = source_fixture()
+      item1 = media_item_fixture(%{source_id: source1.id})
+      _item2 = media_item_fixture(%{source_id: source2.id})
+
+      conn = get(conn, "/api/media?source_id=#{source1.id}")
+      response = json_response(conn, 200)
+
+      ids = Enum.map(response["data"], & &1["id"])
+      assert ids == [item1.id]
+    end
+
+    test "respects limit param", %{conn: conn} do
+      for _ <- 1..10 do
+        media_item_fixture()
+      end
+
+      conn = get(conn, "/api/media?limit=5")
+      response = json_response(conn, 200)
+
+      assert length(response["data"]) == 5
+    end
+  end
+
+  describe "GET /api/media/:id" do
+    test "returns media item details", %{conn: conn} do
+      item = media_item_fixture()
+
+      conn = get(conn, "/api/media/#{item.id}")
+      response = json_response(conn, 200)
+
+      assert response["id"] == item.id
+      assert response["title"] == item.title
+    end
+
+    test "returns 404 when item does not exist", %{conn: conn} do
+      assert_error_sent 404, fn ->
+        get(conn, "/api/media/99999")
+      end
+    end
+  end
+
+  describe "DELETE /api/media/:id" do
+    test "deletes media files", %{conn: conn} do
+      item = media_item_fixture()
+
+      expect(UserScriptRunnerMock, :run, fn :media_deleted, _data -> {:ok, "", 0} end)
+
+      conn = delete(conn, "/api/media/#{item.id}")
+      response = json_response(conn, 200)
+
+      assert response["message"] == "Media files deleted successfully"
+    end
+
+    test "deletes with prevent_download=true", %{conn: conn} do
+      item = media_item_fixture()
+
+      expect(UserScriptRunnerMock, :run, fn :media_deleted, _data -> {:ok, "", 0} end)
+
+      conn = delete(conn, "/api/media/#{item.id}?prevent_download=true")
+      response = json_response(conn, 200)
+
+      assert response["message"]
+    end
+
+    test "returns 404 when item does not exist", %{conn: conn} do
+      assert_error_sent 404, fn ->
+        delete(conn, "/api/media/99999")
+      end
+    end
+  end
+
+  describe "POST /api/media/:id/actions/download" do
+    test "triggers download job", %{conn: conn} do
+      item = media_item_fixture()
+
+      conn = post(conn, "/api/media/#{item.id}/actions/download")
+      response = json_response(conn, 200)
+
+      assert response["message"] == "Download job created"
+    end
+
+    test "returns 404 when item does not exist", %{conn: conn} do
+      assert_error_sent 404, fn ->
+        post(conn, "/api/media/99999/actions/download")
+      end
+    end
+  end
 
   describe "GET /api/media/recent_downloads" do
     test "returns only downloaded media items", %{conn: conn} do

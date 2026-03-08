@@ -247,6 +247,193 @@ test/
     conn_case.ex       # HTTP test setup
 ```
 
+## API Documentation
+
+Pinchflat provides a REST API with OpenAPI 3.0 specification and Scalar for interactive documentation.
+
+### OpenAPI Specification
+
+**Location:** `lib/pinchflat_web/api_spec.ex`
+
+Uses `open_api_spex` (~> 3.21) to generate OpenAPI 3.0 specification programmatically:
+
+```elixir
+defmodule PinchflatWeb.ApiSpec do
+  alias OpenApiSpex.{Info, OpenApi, Server}
+
+  def spec do
+    %OpenApi{
+      info: %Info{
+        title: "Pinchflat API",
+        version: "1.0.0"
+      },
+      servers: [%Server{url: "/"}],
+      paths: # ... endpoint definitions
+    }
+    |> OpenApiSpex.resolve_schema_modules()
+  end
+end
+```
+
+**Access Points:**
+
+- Interactive docs: http://localhost:4000/api/docs (Scalar UI)
+- OpenAPI JSON: http://localhost:4000/api/spec
+
+### API Schemas
+
+**Location:** `lib/pinchflat_web/schemas.ex`
+
+Define reusable schemas using `OpenApiSpex.schema/1`:
+
+```elixir
+defmodule PinchflatWeb.Schemas.Source do
+  require OpenApiSpex
+
+  OpenApiSpex.schema(%{
+    title: "Source",
+    description: "A YouTube channel or playlist source",
+    type: :object,
+    properties: %{
+      id: %Schema{type: :integer, description: "Source ID"},
+      custom_name: %Schema{type: :string, description: "Custom name"}
+    },
+    required: [:id, :custom_name],
+    example: %{
+      "id" => 1,
+      "custom_name" => "My Channel"
+    }
+  })
+end
+```
+
+**Available Schemas:**
+
+- `HealthResponse` - Health check response
+- `MediaProfile` - Media download configuration
+- `Source` - YouTube channel/playlist source
+- `MediaItem` - Downloaded media item
+- `RecentDownloadsResponse` - List of recent downloads
+- `SourcesListResponse` - List of sources
+- `CreateSourceRequest` - Create source request body
+- `UpdateSourceRequest` - Update source request body
+
+### Scalar API Documentation
+
+**Location:** `lib/pinchflat_web/controllers/api_docs_controller.ex`
+
+Serves Scalar UI loaded from CDN:
+
+```elixir
+def index(conn, _params) do
+  html(conn, """
+  <!DOCTYPE html>
+  <html>
+    <head>
+      <title>Pinchflat API Documentation</title>
+    </head>
+    <body>
+      <script
+        id="api-reference"
+        data-url="/api/spec"
+        data-theme="default"></script>
+      <script src="https://cdn.jsdelivr.net/npm/@scalar/api-reference"></script>
+    </body>
+  </html>
+  """)
+end
+```
+
+**Note:** Scalar is loaded via CDN, not bundled with the app.
+
+### API Endpoints
+
+**Public Endpoints** (`:api` pipeline - no auth, no CSRF):
+
+- `GET /api/spec` - OpenAPI specification JSON
+- `GET /api/media/recent_downloads` - Recent downloads (limit: 1-500)
+
+**Dual-Format Endpoints** (HTML or JSON based on Accept header):
+
+- `GET /sources` - List all sources
+- `POST /sources` - Create source
+- `GET /sources/{id}` - Get source details
+- `PUT /sources/{id}` - Update source
+- `DELETE /sources/{id}` - Delete source
+
+**Podcast/Streaming Endpoints:**
+
+- `GET /sources/opml` - OPML feed for podcast clients
+- `GET /sources/{uuid}/feed` - RSS feed for source
+- `GET /sources/{uuid}/feed_image` - Source feed image
+- `GET /media/{uuid}/episode_image` - Episode thumbnail
+- `GET /media/{uuid}/stream` - Stream media file (Range support)
+
+### Adding New API Endpoints
+
+1. **Define operation in `api_spec.ex`:**
+
+```elixir
+"/api/media/recent_downloads" => %PathItem{
+  get: %Operation{
+    tags: ["Media"],
+    summary: "Get recent downloads",
+    operationId: "MediaController.recent_downloads",
+    parameters: [
+      Operation.parameter(:limit, :query, :integer, "Max items")
+    ],
+    responses: %{
+      200 => Operation.response("Success", "application/json", RecentDownloadsResponse)
+    }
+  }
+}
+```
+
+2. **Implement controller with OpenApiSpex plug:**
+
+```elixir
+defmodule PinchflatWeb.Api.MediaController do
+  use PinchflatWeb, :controller
+  use OpenApiSpex.ControllerSpecs
+
+  alias OpenApiSpex.Operation
+
+  @spec recent_downloads(Conn.t(), map()) :: Conn.t()
+  def recent_downloads(conn, %{"limit" => limit}) do
+    # Implementation
+    json(conn, %{data: media_items})
+  end
+end
+```
+
+3. **Add route to `router.ex`:**
+
+```elixir
+scope "/api", PinchflatWeb do
+  pipe_through :api
+
+  get "/media/recent_downloads", Api.MediaController, :recent_downloads
+end
+```
+
+4. **Create schemas in `schemas.ex` if needed**
+
+5. **Add tests in `test/pinchflat_web/controllers/`**
+
+### Testing API Documentation
+
+```elixir
+test "renders Scalar UI" do
+  conn = get(build_conn(), "/api/docs")
+  assert html_response(conn, 200) =~ "@scalar/api-reference"
+end
+
+test "returns OpenAPI spec" do
+  conn = get(build_conn(), "/api/spec")
+  assert %{"openapi" => "3.0.0"} = json_response(conn, 200)
+end
+```
+
 ## Pre-commit Hooks
 
 Lefthook runs on commit (configured in `lefthook.yml`):
