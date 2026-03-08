@@ -76,6 +76,14 @@ defmodule PinchflatWeb.Router do
     pipe_through :api
 
     get "/media/recent_downloads", Api.MediaController, :recent_downloads
+    get "/spec", ApiSpecController, :spec
+  end
+
+  # Scalar API documentation UI
+  scope "/api/docs", PinchflatWeb do
+    pipe_through :browser
+
+    get "/", ApiDocsController, :index
   end
 
   scope "/dev" do
