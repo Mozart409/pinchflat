@@ -59,5 +59,11 @@
     <:tab title="Active Tasks" id="active-tasks">
       {live_render(@conn, Pinchflat.Pages.JobTableLive)}
     </:tab>
+    <:tab title="Job Queue" id="job-queue">
+      {live_render(@conn, Pinchflat.Pages.JobQueueLive)}
+    </:tab>
+    <:tab title="System Health" id="system-health">
+      {live_render(@conn, Pinchflat.Pages.SystemHealthLive)}
+    </:tab>
   </.tabbed_layout>
 </div>

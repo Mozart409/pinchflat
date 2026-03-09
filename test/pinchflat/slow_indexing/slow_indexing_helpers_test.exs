@@ -599,4 +599,111 @@ defmodule Pinchflat.SlowIndexing.SlowIndexingHelpersTest do
       SlowIndexingHelpers.index_and_enqueue_download_for_media_items(source)
     end
   end
+
+  describe "index_and_enqueue_download_for_media_items when testing dateafter options" do
+    test "uses dateafter when download_cutoff_date is set" do
+      cutoff_date = Date.utc_today() |> Date.add(-10)
+      source = source_fixture(%{download_cutoff_date: cutoff_date})
+
+      expect(YtDlpRunnerMock, :run, fn _url, :get_media_attributes_for_collection, opts, _ot, _addl_opts ->
+        expected_dateafter = Date.to_iso8601(cutoff_date, :basic)
+        assert {:dateafter, ^expected_dateafter} = Enum.find(opts, fn opt -> match?({:dateafter, _}, opt) end)
+
+        {:ok, source_attributes_return_fixture()}
+      end)
+
+      SlowIndexingHelpers.index_and_enqueue_download_for_media_items(source)
+    end
+
+    test "uses retention-based date when retention_period_days is set and more recent than cutoff" do
+      # Old cutoff date (30 days ago)
+      old_cutoff = Date.utc_today() |> Date.add(-30)
+      # Retention of 5 days means we only need to scan ~8 days (5 + 3 buffer)
+      source = source_fixture(%{download_cutoff_date: old_cutoff, retention_period_days: 5})
+
+      expect(YtDlpRunnerMock, :run, fn _url, :get_media_attributes_for_collection, opts, _ot, _addl_opts ->
+        {:dateafter, dateafter_value} = Enum.find(opts, fn opt -> match?({:dateafter, _}, opt) end)
+
+        # Should be retention + buffer days ago (5 + 3 = 8 days ago)
+        expected_date = Date.utc_today() |> Date.add(-8)
+        expected_dateafter = Date.to_iso8601(expected_date, :basic)
+        assert dateafter_value == expected_dateafter
+
+        {:ok, source_attributes_return_fixture()}
+      end)
+
+      SlowIndexingHelpers.index_and_enqueue_download_for_media_items(source)
+    end
+
+    test "uses cutoff date when it's more recent than retention-based date" do
+      # Recent cutoff date (2 days ago)
+      recent_cutoff = Date.utc_today() |> Date.add(-2)
+      # Retention of 30 days would mean scanning 33 days (30 + 3 buffer)
+      source = source_fixture(%{download_cutoff_date: recent_cutoff, retention_period_days: 30})
+
+      expect(YtDlpRunnerMock, :run, fn _url, :get_media_attributes_for_collection, opts, _ot, _addl_opts ->
+        expected_dateafter = Date.to_iso8601(recent_cutoff, :basic)
+        assert {:dateafter, ^expected_dateafter} = Enum.find(opts, fn opt -> match?({:dateafter, _}, opt) end)
+
+        {:ok, source_attributes_return_fixture()}
+      end)
+
+      SlowIndexingHelpers.index_and_enqueue_download_for_media_items(source)
+    end
+
+    test "does not use dateafter when neither cutoff nor retention is set" do
+      source = source_fixture(%{download_cutoff_date: nil, retention_period_days: nil})
+
+      expect(YtDlpRunnerMock, :run, fn _url, :get_media_attributes_for_collection, opts, _ot, _addl_opts ->
+        refute Keyword.has_key?(opts, :dateafter)
+
+        {:ok, source_attributes_return_fixture()}
+      end)
+
+      SlowIndexingHelpers.index_and_enqueue_download_for_media_items(source)
+    end
+
+    test "does not use dateafter when retention is 0 (keep forever) and no cutoff" do
+      source = source_fixture(%{download_cutoff_date: nil, retention_period_days: 0})
+
+      expect(YtDlpRunnerMock, :run, fn _url, :get_media_attributes_for_collection, opts, _ot, _addl_opts ->
+        refute Keyword.has_key?(opts, :dateafter)
+
+        {:ok, source_attributes_return_fixture()}
+      end)
+
+      SlowIndexingHelpers.index_and_enqueue_download_for_media_items(source)
+    end
+
+    test "uses cutoff date when retention is 0 (keep forever)" do
+      cutoff_date = Date.utc_today() |> Date.add(-10)
+      source = source_fixture(%{download_cutoff_date: cutoff_date, retention_period_days: 0})
+
+      expect(YtDlpRunnerMock, :run, fn _url, :get_media_attributes_for_collection, opts, _ot, _addl_opts ->
+        expected_dateafter = Date.to_iso8601(cutoff_date, :basic)
+        assert {:dateafter, ^expected_dateafter} = Enum.find(opts, fn opt -> match?({:dateafter, _}, opt) end)
+
+        {:ok, source_attributes_return_fixture()}
+      end)
+
+      SlowIndexingHelpers.index_and_enqueue_download_for_media_items(source)
+    end
+
+    test "uses retention-based date when cutoff is nil but retention is set" do
+      source = source_fixture(%{download_cutoff_date: nil, retention_period_days: 7})
+
+      expect(YtDlpRunnerMock, :run, fn _url, :get_media_attributes_for_collection, opts, _ot, _addl_opts ->
+        {:dateafter, dateafter_value} = Enum.find(opts, fn opt -> match?({:dateafter, _}, opt) end)
+
+        # Should be retention + buffer days ago (7 + 3 = 10 days ago)
+        expected_date = Date.utc_today() |> Date.add(-10)
+        expected_dateafter = Date.to_iso8601(expected_date, :basic)
+        assert dateafter_value == expected_dateafter
+
+        {:ok, source_attributes_return_fixture()}
+      end)
+
+      SlowIndexingHelpers.index_and_enqueue_download_for_media_items(source)
+    end
+  end
 end
