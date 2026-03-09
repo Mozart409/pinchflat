@@ -138,7 +138,8 @@ defmodule Pinchflat.SlowIndexing.SlowIndexingHelpers do
     command_opts =
       [output: DownloadOptionBuilder.build_output_path_for(source)] ++
         DownloadOptionBuilder.build_quality_options_for(source) ++
-        build_download_archive_options(source, was_forced)
+        build_download_archive_options(source, was_forced) ++
+        build_dateafter_options(source)
 
     runner_opts = [file_listener_handler: handler, use_cookies: should_use_cookies]
     result = MediaCollection.get_media_attributes_for_collection(source.original_url, command_opts, runner_opts)
@@ -241,6 +242,55 @@ defmodule Pinchflat.SlowIndexing.SlowIndexingHelpers do
     archive_file = create_download_archive_file(source)
 
     [:break_on_existing, download_archive: archive_file]
+  end
+
+  # Builds the --dateafter option for yt-dlp to skip videos older than a calculated
+  # effective scan date. This is determined by taking the most recent of:
+  # 1. The source's download_cutoff_date
+  # 2. Today minus retention_period_days minus a buffer (for sources with retention)
+  #
+  # The buffer (3 days) accounts for upload delays and timezone differences.
+  # This optimization dramatically reduces indexing time for sources with short
+  # retention periods - instead of scanning thousands of old videos, we only
+  # scan videos that could potentially be downloaded and retained.
+  @dateafter_buffer_days 3
+  defp build_dateafter_options(%Source{} = source) do
+    effective_date = calculate_effective_scan_date(source)
+
+    case effective_date do
+      nil -> []
+      date -> [dateafter: Date.to_iso8601(date, :basic)]
+    end
+  end
+
+  # Calculates the effective scan date by comparing the download_cutoff_date
+  # with a retention-based date (if applicable). Returns the more recent of the two,
+  # since there's no point scanning videos older than either threshold.
+  defp calculate_effective_scan_date(%Source{} = source) do
+    cutoff_date = source.download_cutoff_date
+    retention_date = calculate_retention_based_date(source)
+
+    case {cutoff_date, retention_date} do
+      {nil, nil} -> nil
+      {cutoff, nil} -> cutoff
+      {nil, retention} -> retention
+      {cutoff, retention} -> max_date(cutoff, retention)
+    end
+  end
+
+  # For sources with retention, calculate a date based on retention_period_days + buffer.
+  # Returns nil if retention is not set (nil or 0 means keep forever).
+  defp calculate_retention_based_date(%Source{retention_period_days: nil}), do: nil
+  defp calculate_retention_based_date(%Source{retention_period_days: 0}), do: nil
+
+  defp calculate_retention_based_date(%Source{retention_period_days: retention_days}) do
+    # Add buffer days to account for upload delays and ensure we don't miss edge cases
+    days_to_scan = retention_days + @dateafter_buffer_days
+    Date.utc_today() |> Date.add(-days_to_scan)
+  end
+
+  defp max_date(date1, date2) do
+    if Date.compare(date1, date2) == :gt, do: date1, else: date2
   end
 
   # Updates the source after a successful indexing run. This includes:
