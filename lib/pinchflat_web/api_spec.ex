@@ -33,6 +33,7 @@ defmodule PinchflatWeb.ApiSpec do
   defp collect_paths do
     PinchflatWeb.Router.__routes__()
     |> Enum.filter(fn route -> has_operation?(route) end)
+    |> Enum.reject(&html_only_action?/1)
     |> Enum.reduce(%{}, fn route, acc ->
       path = route_to_path(route.path)
       method = String.downcase(to_string(route.verb)) |> String.to_atom()
@@ -51,6 +52,44 @@ defmodule PinchflatWeb.ApiSpec do
   defp route_to_path(path) do
     path
     |> String.replace(~r/:([^\/]+)/, "{\\1}")
+  end
+
+  defp html_only_action?(route) do
+    # Only filter HTML-only actions from browser controllers (not API controllers)
+    # API controllers are in the PinchflatWeb.Api namespace
+    is_api_controller = String.starts_with?(Atom.to_string(route.plug), "Elixir.PinchflatWeb.Api.")
+
+    if is_api_controller do
+      false
+    else
+      # Filter HTML-only actions based on controller
+      # Note: Some browser controllers have dual-format actions that support both HTML and JSON
+      controller = route.plug
+      action = route.plug_opts
+
+      cond do
+        # SourceController: force_* actions are HTML-only redirects
+        controller == PinchflatWeb.Sources.SourceController and
+            action in [
+              :new,
+              :edit,
+              :force_download_pending,
+              :force_redownload,
+              :force_index,
+              :force_metadata_refresh,
+              :sync_files_on_disk
+            ] ->
+          true
+
+        # MediaItemController: all actions except :stream are HTML-only
+        controller == PinchflatWeb.MediaItems.MediaItemController and
+            action in [:show, :edit, :update, :delete, :force_download] ->
+          true
+
+        true ->
+          false
+      end
+    end
   end
 
   defp has_operation?(route) do
