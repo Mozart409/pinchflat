@@ -2,6 +2,7 @@ defmodule PinchflatWeb.Api.MediaProfileControllerTest do
   use PinchflatWeb.ConnCase
 
   import Pinchflat.ProfilesFixtures
+  import PinchflatWeb.ApiSpecHelper
 
   alias Pinchflat.Profiles
 
@@ -17,6 +18,9 @@ defmodule PinchflatWeb.Api.MediaProfileControllerTest do
       assert profile1.id in ids
       assert profile2.id in ids
       assert length(response["data"]) == 2
+
+      # Validate response matches OpenAPI schema
+      assert_response_schema(conn, "Api.MediaProfileController.index")
     end
 
     test "returns empty list when no profiles exist", %{conn: conn} do
@@ -36,6 +40,9 @@ defmodule PinchflatWeb.Api.MediaProfileControllerTest do
 
       assert response["id"] == profile.id
       assert response["name"] == "Test Profile"
+
+      # Validate response matches OpenAPI schema
+      assert_response_schema(conn, "Api.MediaProfileController.show")
     end
 
     test "returns 404 when profile does not exist", %{conn: conn} do
@@ -60,6 +67,9 @@ defmodule PinchflatWeb.Api.MediaProfileControllerTest do
       assert response["name"] == "New Profile"
       assert response["output_path_template"] == "/downloads/{{ title }}.{{ ext }}"
       assert response["id"]
+
+      # Validate response matches OpenAPI schema
+      assert_response_schema(conn, "Api.MediaProfileController.create", 201)
     end
 
     test "returns 422 with invalid params", %{conn: conn} do
@@ -91,6 +101,9 @@ defmodule PinchflatWeb.Api.MediaProfileControllerTest do
 
       assert response["name"] == "New Name"
       assert response["id"] == profile.id
+
+      # Validate response matches OpenAPI schema
+      assert_response_schema(conn, "Api.MediaProfileController.update")
     end
 
     test "returns 404 when profile does not exist", %{conn: conn} do

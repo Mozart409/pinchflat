@@ -4,6 +4,7 @@ defmodule PinchflatWeb.Api.MediaControllerTest do
   import Mox
   import Pinchflat.MediaFixtures
   import Pinchflat.SourcesFixtures
+  import PinchflatWeb.ApiSpecHelper
 
   describe "GET /api/media" do
     test "returns list of media items", %{conn: conn} do
@@ -16,6 +17,9 @@ defmodule PinchflatWeb.Api.MediaControllerTest do
       ids = Enum.map(response["data"], & &1["id"])
       assert item1.id in ids
       assert item2.id in ids
+
+      # Validate response matches OpenAPI schema
+      assert_response_schema(conn, "Api.MediaController.index")
     end
 
     test "filters by source_id", %{conn: conn} do
@@ -29,6 +33,9 @@ defmodule PinchflatWeb.Api.MediaControllerTest do
 
       ids = Enum.map(response["data"], & &1["id"])
       assert ids == [item1.id]
+
+      # Validate response matches OpenAPI schema
+      assert_response_schema(conn, "Api.MediaController.index")
     end
 
     test "respects limit param", %{conn: conn} do
@@ -40,6 +47,9 @@ defmodule PinchflatWeb.Api.MediaControllerTest do
       response = json_response(conn, 200)
 
       assert length(response["data"]) == 5
+
+      # Validate response matches OpenAPI schema
+      assert_response_schema(conn, "Api.MediaController.index")
     end
   end
 
@@ -52,6 +62,9 @@ defmodule PinchflatWeb.Api.MediaControllerTest do
 
       assert response["id"] == item.id
       assert response["title"] == item.title
+
+      # Validate response matches OpenAPI schema
+      assert_response_schema(conn, "Api.MediaController.show")
     end
 
     test "returns 404 when item does not exist", %{conn: conn} do
@@ -71,6 +84,9 @@ defmodule PinchflatWeb.Api.MediaControllerTest do
       response = json_response(conn, 200)
 
       assert response["message"] == "Media files deleted successfully"
+
+      # Validate response matches OpenAPI schema
+      assert_response_schema(conn, "Api.MediaController.delete")
     end
 
     test "deletes with prevent_download=true", %{conn: conn} do
@@ -99,6 +115,9 @@ defmodule PinchflatWeb.Api.MediaControllerTest do
       response = json_response(conn, 200)
 
       assert response["message"] == "Download job created"
+
+      # Validate response matches OpenAPI schema
+      assert_response_schema(conn, "Api.MediaController.download")
     end
 
     test "returns 404 when item does not exist", %{conn: conn} do
@@ -119,6 +138,9 @@ defmodule PinchflatWeb.Api.MediaControllerTest do
       ids = Enum.map(response["data"], & &1["id"])
       assert downloaded.id in ids
       assert length(response["data"]) == 1
+
+      # Validate response matches OpenAPI schema
+      assert_response_schema(conn, "Api.MediaController.recent_downloads")
     end
 
     test "returns items ordered by media_downloaded_at descending", %{conn: conn} do
