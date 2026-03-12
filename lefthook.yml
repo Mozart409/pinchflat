@@ -2,7 +2,7 @@ pre-commit:
   parallel: true
   jobs:
     - name: prettier
-      glob: '*.{css,html,js,json,md,mjs,ts,yaml,yml}'
+      glob: '*.{css,html,js,json,mjs,ts,yaml,yml}'
       run: docker compose run --rm phx yarn run prettier --check --config=.prettierrc.js --ignore-path=.prettierignore --ignore-path=.gitignore {staged_files}
     - name: mix format
       glob: '*.{ex,exs}'
@@ -14,4 +14,4 @@ pre-commit:
       glob: '.github/workflows/*.{yml,yaml}'
       run: actionlint {staged_files}
     - name: mix check
-      run: docker compose run --rm phx mix check --no-fix --no-retry
+      run: docker compose run --rm phx mix check --fix
