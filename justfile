@@ -14,3 +14,6 @@ down: clear
 test: clear
     docker compose run --rm phx mix test
 
+
+up: clear
+    docker compose up -d --build --remove-orphans

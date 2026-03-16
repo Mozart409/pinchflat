@@ -13,3 +13,95 @@ services:
     environment:
       PAGINATION_HISTORY_LIMIT: 10
       PAGINATION_LIMIT: 20
+      DB_URL_2: postgres://postgres:postgres@pgbouncer:6432/pinchflat_dev
+    depends_on:
+      - postgres
+      - pgbouncer
+  postgres:
+    container_name: postgres
+    build:
+      context: .
+      dockerfile: ./docker/postgres.Dockerfile
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: pinchflat_dev
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+  pgbouncer:
+    image: pgbouncer/pgbouncer:latest
+    container_name: pgbouncer
+    ports:
+      - '6432:6432'
+    environment:
+      DATABASES_HOST: postgres
+      DATABASES_PORT: 5432
+      DATABASES_DATABASE: pinchflat_dev
+      DATABASES_USER: postgres
+      DATABASES_PASSWORD: postgres
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 100
+      DEFAULT_POOL_SIZE: 20
+      ADMIN_USERS: postgres,pgbouncer
+      AUTH_TYPE: md5
+      AUTH_FILE: /etc/pgbouncer/userlist.txt
+    volumes:
+      - ./docker/pgbouncer/userlist.txt:/etc/pgbouncer/userlist.txt:ro
+    depends_on:
+      - postgres
+    healthcheck:
+      test: ['CMD-SHELL', 'nc -z localhost 6432 || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter:latest
+    container_name: postgres_exporter
+    ports:
+      - '9187:9187'
+    environment:
+      DATA_SOURCE_NAME: postgresql://postgres:postgres@postgres:5432/pinchflat_dev?sslmode=disable
+      PG_EXPORTER_EXTEND_QUERY_PATH: /queries.yaml
+    volumes:
+      - ./docker/postgres_exporter/queries.yaml:/queries.yaml:ro
+    depends_on:
+      - postgres
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget --no-verbose --tries=1 --spider http://localhost:9187/metrics || exit 1'
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  pgbouncer_exporter:
+    image: spreaker/prometheus-pgbouncer-exporter:latest
+    container_name: pgbouncer_exporter
+    ports:
+      - '9127:9127'
+    volumes:
+      - ./docker/pgbouncer_exporter/config.yml:/etc/pgbouncer-exporter/config.yml:ro
+    depends_on:
+      - pgbouncer
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget --no-verbose --tries=1 --spider http://127.0.0.1:9127/metrics || exit 1'
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  postgres_data:

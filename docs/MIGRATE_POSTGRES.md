@@ -1,6 +1,7 @@
 # Postgres Migration Notes (Draft)
 
 This document captures draft notes created in chat for migrating Pinchflat from SQLite to Postgres, including:
+
 - Appendix A: SQLite-specific patterns to remove (audit list)
 - Appendix B: SQLite → Postgres data migration plan
 - Appendix C: One-time external migration script (SQLite → Postgres)
@@ -14,11 +15,14 @@ These notes are intentionally draft quality and may require updates to match the
 This is a targeted audit checklist of patterns that are known to be SQLite-specific (or SQLite-first) and must be removed/replaced for a Postgres-only migration.
 
 > Note: automated search results may be incomplete due to search result caps. Please re-run searches in the GitHub UI to confirm full coverage:
+>
 > - Repo code search: https://github.com/Mozart409/pinchflat/search?q=fragment%28&type=code
 > - Migrations folder: https://github.com/Mozart409/pinchflat/tree/master/priv/repo/migrations
 
 ### A.1 `fragment(` usage (SQL fragments)
+
 **Observed in:**
+
 - `lib/pinchflat/media/media_query.ex`
   - Examples include fragments with `regexp_like`, `IFNULL`, `DATETIME`, `DATE('now', ...)`, `MATCH` FTS, `snippet(...)`, and `rank`.
   - URL (representative excerpt):
@@ -30,8 +34,11 @@ This is a targeted audit checklist of patterns that are known to be SQLite-speci
 ---
 
 ### A.2 `execute("""` usage in migrations (raw SQL)
+
 **Observed in:**
+
 - `priv/repo/migrations/20260308222828_cleanup_orphaned_tasks.exs`
+
   - Uses `execute(""" ... """)`:
   - https://github.com/Mozart409/pinchflat/blob/e699395375d7dc9319f3175bbd8003ff6e0e3857/priv/repo/migrations/20260308222828_cleanup_orphaned_tasks.exs#L1-L17
 
@@ -44,8 +51,11 @@ This is a targeted audit checklist of patterns that are known to be SQLite-speci
 ---
 
 ### A.3 `IFNULL` (SQLite) → `COALESCE` (Postgres)
+
 **Observed in:**
+
 - `lib/pinchflat/media/media_query.ex`
+
   - `IFNULL(retention_period_days, 0)`
   - `IFNULL(redownload_delay_days, 0)`
 
@@ -57,7 +67,9 @@ This is a targeted audit checklist of patterns that are known to be SQLite-speci
 ---
 
 ### A.4 `DATETIME(` and `DATE('now', ...)` (SQLite date functions)
+
 **Observed in:**
+
 - `lib/pinchflat/media/media_query.ex`
   - `DATETIME(media_downloaded_at, '+' || retention_period_days || ' day') < DATETIME('now')`
   - `DATE('now', '-' || redownload_delay_days || ' day') > DATE(uploaded_at)`
@@ -68,11 +80,15 @@ This is a targeted audit checklist of patterns that are known to be SQLite-speci
 ---
 
 ### A.5 `regexp_like` + sqlean regex behavior
+
 **Observed in:**
+
 - `lib/pinchflat/media/media_query.ex`
+
   - `fragment("regexp_like(?, ?)", mi.title, source.title_filter_regex)`
 
 - `config/runtime.exs` loads the sqlean extension
+
   - `load_extensions: [ ... "sqlean" ... ]`
   - https://github.com/Mozart409/pinchflat/blob/e699395375d7dc9319f3175bbd8003ff6e0e3857/config/runtime.exs#L1-L74
 
@@ -85,7 +101,9 @@ This is a targeted audit checklist of patterns that are known to be SQLite-speci
 ---
 
 ### A.6 SQLite FTS (`MATCH`, `snippet`, `rank`)
+
 **Observed in:**
+
 - `lib/pinchflat/media/media_query.ex`
   - `fragment("media_items_search_index MATCH ?", ...)`
   - `snippet(media_items_search_index, ...)`
@@ -97,7 +115,9 @@ This is a targeted audit checklist of patterns that are known to be SQLite-speci
 ---
 
 ### A.7 Any mention of `SQLite` in docs/comments (behavioral assumptions)
+
 **Observed in:**
+
 - `AGENTS.md` (“Ecto with SQLite”)
 - `Pinchflat_improvements.md` has a section about SQLite “Database busy” errors
 - `lib/pinchflat/media/media.ex` comment: “SQLite doesn't like empty MATCH clauses.”
@@ -109,7 +129,9 @@ This is a targeted audit checklist of patterns that are known to be SQLite-speci
 ---
 
 ### A.8 `Oban.Engines.Lite` (SQLite-first Oban engine)
+
 **Observed in:**
+
 - `config/config.exs`
   - `config :pinchflat, Oban, engine: Oban.Engines.Lite, repo: Pinchflat.Repo`
   - https://github.com/Mozart409/pinchflat/blob/e699395375d7dc9319f3175bbd8003ff6e0e3857/config/config.exs#L20-L102
@@ -119,7 +141,9 @@ This is a targeted audit checklist of patterns that are known to be SQLite-speci
 ---
 
 ### A.9 `load_extensions` / `sqlean` (SQLite-only)
+
 **Observed in:**
+
 - `config/runtime.exs`
   - `config :pinchflat, Pinchflat.Repo, load_extensions: [...]`
 
@@ -130,54 +154,153 @@ This is a targeted audit checklist of patterns that are known to be SQLite-speci
 ## Appendix B — SQLite → Postgres data migration plan (Postgres-only target)
 
 This appendix assumes:
+
 - The target is Postgres-only.
 - You need to migrate existing user data from the current SQLite DB.
 
 ### B.1 Migration strategy choices
 
 #### Strategy 1 — External migration tool (recommended for speed)
+
 Use **pgloader** (or similar) to copy schema+data from SQLite to Postgres, then run any Postgres-only fixes/migrations.
 
 #### Strategy 2 — In-app migrator (Mix task / Release task)
+
 A one-off task that reads from SQLite and writes to Postgres table-by-table, transforming data as needed.
 
 ### B.2 Pre-migration: what must change in the app before Postgres can run
+
 - Switch Repo adapter from SQLite to Postgres.
 - Remove sqlean `load_extensions`.
 - Remove Oban Lite engine.
 - Replace SQLite FTS.
 
 ### B.3 Cutover plan (high-level)
-1) Stop Pinchflat
-2) Backup SQLite DB
-3) Provision Postgres
-4) Create Postgres schema
-5) Migrate data
-6) Post-migrate fixes (search index rebuild, sequences)
-7) Validate
-8) Start Pinchflat on Postgres
+
+1. Stop Pinchflat
+2. Backup SQLite DB
+3. Provision Postgres
+4. Create Postgres schema
+5. Migrate data
+6. Post-migrate fixes (search index rebuild, sequences)
+7. Validate
+8. Start Pinchflat on Postgres
 
 ### B.4 Concrete “pgloader-style” migration procedure (recommended MVP)
+
 - Exclude SQLite-only tables (especially FTS virtual tables)
 - Run pgloader
 - Verify sequences and constraints
 
-### B.5 Replacing SQLite FTS with Postgres full-text search
-Recommended: `tsvector` column + GIN index, query with `@@` and rank with `ts_rank`, and snippet via `ts_headline`.
+### B.5 Replacing SQLite FTS5 with Postgres full-text search
 
-### B.6 Handling SQLite-specific SQL in queries/fragments
+Several options are available to replace SQLite FTS5 in PostgreSQL:
+
+#### Option 1: Native PostgreSQL Full-Text Search (Recommended)
+
+- **Pros**: Built-in, no extensions needed, supports stemming, ranking, highlighting
+- **Implementation**: `tsvector` column + GIN index, query with `@@`, rank with `ts_rank()`, snippets with `ts_headline()`
+- **Best for**: General text search with relevance ranking
+- **Example**:
+  ```sql
+  ALTER TABLE media_items ADD COLUMN search_vector tsvector;
+  CREATE INDEX idx_media_items_search ON media_items USING GIN(search_vector);
+  -- Update: UPDATE media_items SET search_vector = to_tsvector('english', title || ' ' || description);
+  -- Query: SELECT * FROM media_items WHERE search_vector @@ to_tsquery('english', 'search term');
+  ```
+
+#### Option 2: pg_trgm (Trigram Similarity)
+
+- **Pros**: Already enabled in this setup, excellent for fuzzy/partial matching, typo-tolerant
+- **Implementation**: GIN/GIST index on text columns, query with `%` (similarity) or `pg_trgm.similarity()`
+- **Best for**: Autocomplete, "did you mean?", fuzzy matching
+- **Note**: Trigram is enabled via `docker/init.sql`
+
+#### Option 3: Hybrid Approach (pg_trgm + tsvector)
+
+- **Pros**: Combines exact FTS ranking with fuzzy matching
+- **Implementation**: Both indexes on same table, UNION queries or fallback logic
+- **Best for**: Best of both worlds - exact search + typo tolerance
+
+#### Option 4: Dedicated Search Extensions
+
+- **pg_search** (if available): Built-in Postgres feature
+- **pg_bigm**: Alternative to pg_trgm for multi-byte characters (better for international text)
+
+#### Migration Notes
+
+- **SQLite FTS virtual table** (`media_items_search_index`) must be excluded during migration
+- Search data will need to be rebuilt in Postgres after migration
+- Consider data volume: for < 100k rows, any option works well; for > 1M rows, `tsvector` + GIN is most performant
+
+### B.6 Decision: Using pg_trgm for FTS5 Replacement
+
+**Status**: DECIDED - We will use `pg_trgm` (trigram similarity) to replace SQLite FTS5.
+
+**Rationale**:
+
+- **pg_trgm** is already enabled in `docker/init.sql`
+- Provides excellent fuzzy matching for typo-tolerant search ("did you mean?" functionality)
+- Simpler than `tsvector` for basic text search needs
+- No additional extensions or columns required
+- Works well for media title matching (e.g., searching video titles)
+
+**Implementation Plan**:
+
+1. **Add pg_trgm index** (in migration or init script):
+
+   ```sql
+   CREATE INDEX idx_media_items_title_trgm ON media_items USING GIN(title gin_trgm_ops);
+   ```
+
+2. **Query examples**:
+
+   ```sql
+   -- Basic similarity search (recommended default)
+   SELECT * FROM media_items WHERE title % 'search term';
+
+   -- Strict similarity (>= 0.3 similarity threshold)
+   SELECT * FROM media_items WHERE similarity(title, 'search term') > 0.3;
+
+   -- ILIKE with trigram support (case-insensitive partial match)
+   SELECT * FROM media_items WHERE title ILIKE '%search term%';
+   ```
+
+3. **Ecto fragment example**:
+   ```elixir
+   # In lib/pinchflat/media/media_query.ex
+   def search_by_title(query, search_term) do
+     from m in query,
+       where: fragment("? %% ?", m.title, ^search_term)
+   end
+   ```
+
+**Trade-offs**:
+
+- ✓ Simple implementation, no extra columns
+- ✓ Fuzzy matching handles typos
+- ✗ No built-in relevance ranking (unlike ts_rank)
+- ✗ No snippet highlighting (unlike ts_headline)
+
+**Future enhancement**: If relevance ranking becomes critical, consider migrating to `tsvector` + GIN index hybrid approach (Option 3 above).
+
+### B.7 Handling SQLite-specific SQL in queries/fragments
+
 Rewrite fragments (`IFNULL`, datetime math, `regexp_like`, FTS calls).
 
-### B.7 Oban data migration considerations
+### B.8 Oban data migration considerations
+
 Recommended: treat `oban_jobs` as recreatable operational state unless you truly need history.
 
-### B.8 Validation checklist
+### B.9 Validation checklist
+
 - Row counts
 - FK spot-checks
 - Smoke flows
 - Run tests: `docker compose run --rm phx mix test`
 
-### B.9 Rollback plan
+### B.10 Rollback plan
+
 Keep the SQLite backup and avoid deleting the original until validated.
 
 ---
@@ -187,6 +310,7 @@ Keep the SQLite backup and avoid deleting the original until validated.
 This appendix provides a **single-run shell script** intended for operators.
 
 ### C.1 What the script does
+
 - Stops Pinchflat
 - Backs up SQLite DB
 - Verifies Postgres connectivity
@@ -194,6 +318,7 @@ This appendix provides a **single-run shell script** intended for operators.
 - Runs basic sanity checks
 
 ### C.2 Prerequisites
+
 - docker
 - sqlite3
 - pgloader
@@ -290,7 +415,9 @@ echo "Next steps: start Pinchflat configured for Postgres and rebuild search ind
 ```
 
 ### C.4 Suggested defaults for `--exclude`
+
 Exclude the SQLite FTS virtual table referenced by queries:
+
 - `media_items_search_index` citeturn0search0
 
 Example:
