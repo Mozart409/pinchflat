@@ -6,10 +6,42 @@ Guidelines for AI agents working on this Elixir/Phoenix codebase.
 
 Pinchflat is a self-hosted media management app using:
 
-- **Backend**: Elixir 1.17+, Phoenix 1.7, Ecto with SQLite
+- **Backend**: Elixir 1.17+, Phoenix 1.7, Ecto with SQLite (default) or PostgreSQL
 - **Frontend**: Phoenix LiveView, Tailwind CSS, esbuild
 - **Background Jobs**: Oban
 - **Testing**: ExUnit with Mox for mocking
+
+## Database Migration
+
+The project is actively migrating from SQLite to PostgreSQL for production deployments. See:
+
+- **Migration Documentation**: [docs/MIGRATE_POSTGRES.md](docs/MIGRATE_POSTGRES.md)
+- **Current Status**: SQLite is default, PostgreSQL available via docker-compose.yml
+- **Migration Strategy**: pgloader for data migration, pg_trgm for full-text search
+
+### Docker Compose Services
+
+The `docker-compose.yml` includes PostgreSQL infrastructure:
+
+```yaml
+# Core services
+- postgres:5432 # PostgreSQL with monitoring extensions
+- pgbouncer:6432 # Connection pooler (transaction mode)
+
+# Monitoring exporters
+- postgres_exporter:9187 # PostgreSQL metrics
+- pgbouncer_exporter:9127 # PgBouncer pool metrics
+```
+
+### Database Extensions
+
+PostgreSQL configuration enables:
+
+- `pg_trgm` - Trigram similarity for fuzzy full-text search (SQLite FTS5 replacement)
+- `pg_stat_statements` - Query performance monitoring
+- `pg_buffercache`, `pg_freespacemap`, `pgstattuple` - Resource monitoring
+
+**Note**: See [docs/MIGRATE_POSTGRES.md](docs/MIGRATE_POSTGRES.md) for complete migration guide.
 
 ## Build/Lint/Test Commands
 
